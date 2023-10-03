@@ -1,4 +1,4 @@
-DiffTool
+DiffTool  
 DiffTool is a Java-based program designed to find and highlight differences between two objects of the same type.
 
 Features:  
