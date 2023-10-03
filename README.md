@@ -5,7 +5,7 @@ Features:
 Comparison: Can compare nested properties of an object using dot notation.
 List Handling: Can process differences within lists, including additions, removals, and updates. For lists containing objects, it can associate changes to specific object instances using identifiers.
 Custom Annotations: Uses @AuditKey to determine the unique identifier of objects within a list.
-Generics: Allows the user to compare objects of any custom type.
+Generics: Allows the user to compare objects of any type.
 
 Usage:
 Create an instance of DiffTool and call the diff method, passing in the previous and current states of an object:
@@ -18,7 +18,7 @@ Output:
 The tool outputs a list of changes. A change can be of two main types:
 
 PropertyUpdate: Represents an update to a simple property or a nested property of an object.
--property: Name of the property using dot notation.
+-property: Name of the property.
 -previous: Previous value of the property.
 -current: Current value of the property.
 
