@@ -11,11 +11,7 @@ import java.util.stream.Collectors;
 public class DiffTool<T> {
 
     public List<ChangeType> diff(T previous, T current) {
-        if (previous == null && current == null) return new ArrayList<>();
-
-        if (previous != null && current != null && !previous.getClass().equals(current.getClass())) {
-            throw new TypeMismatchException("The provided objects are of different types.");
-        }
+        validateInput(previous, current);
         return getDifferences(previous, current, "");
     }
 
@@ -35,9 +31,12 @@ public class DiffTool<T> {
             String currentPath = path.isEmpty() ? field.getName() : path + "." + field.getName();
 
             if (prevValue == null && currValue == null) continue;
-            if (prevValue == null || !prevValue.equals(currValue)) {
-                assert prevValue != null;
-                if (isPrimitiveOrString(prevValue) || isPrimitiveOrString(currValue)) {
+            if (prevValue == null) {
+                diffs.add(new PropertyUpdate<>(currentPath, null, currValue.toString()));
+            } else if (currValue == null) {
+                diffs.add(new PropertyUpdate<>(currentPath, prevValue.toString(), null));
+            } else if (!prevValue.equals(currValue)) {
+                if (isNonComplexObject(prevValue) || isNonComplexObject(currValue)) {
                     diffs.add(new PropertyUpdate<>(currentPath, prevValue, currValue));
                 } else if (field.getType().isAssignableFrom(List.class)) {
                     List<T> prevList = (List<T>) prevValue;
@@ -57,7 +56,7 @@ public class DiffTool<T> {
         if (prevList == null) prevList = new ArrayList<>();
         if (currList == null) currList = new ArrayList<>();
 
-        if (prevList.isEmpty() || currList.isEmpty() || (isPrimitiveOrString(prevList.get(0)) && isPrimitiveOrString(currList.get(0)))) {
+        if (prevList.isEmpty() || currList.isEmpty() || (isNonComplexObject(prevList.get(0)) && isNonComplexObject(currList.get(0)))) {
             List<T> added = new ArrayList<>(currList);
             added.removeAll(prevList);
 
@@ -70,7 +69,7 @@ public class DiffTool<T> {
         } else {
             Field keyField = null;
             for (Field field : prevList.get(0).getClass().getDeclaredFields()) {
-                if (field.isAnnotationPresent(AuditKey.class) || "id".equals(field.getName())) {
+                if (isIdentificationField(field)) {
                     keyField = field;
                     break;
                 }
@@ -83,7 +82,7 @@ public class DiffTool<T> {
             Map<Object, T> prevMap = getObjectKeyMap(prevList, keyField);
             Map<Object, T> currMap = getObjectKeyMap(currList, keyField);
 
-            for (Map.Entry<Object, T>  entry: prevMap.entrySet()) {
+            for (Map.Entry<Object, T> entry : prevMap.entrySet()) {
                 Object id = entry.getKey();
                 if (!currMap.containsKey(id)) {
                     // Object was removed
@@ -96,7 +95,7 @@ public class DiffTool<T> {
                 }
             }
 
-            for (Map.Entry<Object, T>  entry: currMap.entrySet()) {
+            for (Map.Entry<Object, T> entry : currMap.entrySet()) {
                 if (!prevMap.containsKey(entry.getKey())) {
                     // Object was added
                     diffs.add(new PropertyUpdate<>(path + "[" + entry.getKey() + "]", null, entry.getValue()));
@@ -105,6 +104,10 @@ public class DiffTool<T> {
         }
 
         return diffs;
+    }
+
+    private boolean isIdentificationField(Field field) {
+        return field.isAnnotationPresent(AuditKey.class) || "id".equals(field.getName());
     }
 
     private Map<Object, T> getObjectKeyMap(List<T> currList, Field keyField) {
@@ -117,8 +120,20 @@ public class DiffTool<T> {
         }, item -> item));
     }
 
-    private boolean isPrimitiveOrString(T obj) {
+    private boolean isNonComplexObject(T obj) {
+        if (obj == null) {
+            return false;
+        }
         return ClassUtils.isPrimitiveWrapper(obj.getClass()) || obj.getClass() == String.class;
     }
+
+    private void validateInput(T previous, T current) {
+        if (previous == null || current == null) throw new IllegalArgumentException("Both previous and current objects should be either null or non-null.");
+
+        if (!previous.getClass().equals(current.getClass())) {
+            throw new TypeMismatchException("The provided objects are of different types.");
+        }
+    }
+
 }
 
